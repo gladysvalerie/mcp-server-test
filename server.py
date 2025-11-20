@@ -100,6 +100,40 @@ def generate_subproblems(problem_id: int) -> str:
 
     except Exception as e:
         return f"Error: {e}"
+    
+@mcp.tool()
+def get_problems_by_topic(topic: str | list):
+    problems_path = os.path.join(os.path.dirname(__file__), "data", "problems.json")
+
+    with open(problems_path, "r") as f:
+        problems = json.load(f)
+
+    if isinstance(topic, str):
+        topics = [topic.lower()]
+    elif isinstance(topic, list):
+        topics = [t.lower() for t in topic if isinstance(t, str)]
+        if not topics:
+            return {"ok": False, "error": "topic list contains no valid strings"}
+    else:
+        return {"ok": False, "error": "topic must be a string or list of strings"}
+
+    results = []
+
+    for p in problems:
+        raw = p.get("topic", [])
+
+        if isinstance(raw, str):
+            problem_topics = [raw.lower()]
+        elif isinstance(raw, list):
+            problem_topics = [t.lower() for t in raw if isinstance(t, str)]
+        else:
+            problem_topics = []
+
+        # Check match
+        if any(t in pt for t in topics for pt in problem_topics):
+            results.append(p)
+
+    return {"ok": True, "results": results}
 
 @mcp.tool()
 def check_solution(problem_id: int, code: str) -> str :
@@ -119,7 +153,6 @@ def check_solution(problem_id: int, code: str) -> str :
         if not problem:
             return json.dumps({"ok": False, "error": f"problem_id {problem_id} not found"})
 
-        # Build a prompt for evaluation. We use .format() to avoid brace issues.
         prompt = """
 Return ONLY valid JSON. No backticks. No explanation.
 
